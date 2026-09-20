@@ -40,6 +40,8 @@ func installVersions(requested []string, options InstallOptions) error {
 	if options.Jobs < 0 {
 		return errors.New("jobs must be at least 1")
 	}
+	progress := newDownloadProgress(env.ErrorOutput)
+	defer progress.close()
 	jobs := options.Jobs
 	if jobs < 1 {
 		jobs = 1
@@ -88,6 +90,9 @@ func installVersions(requested []string, options InstallOptions) error {
 	if len(requests) == 0 {
 		return errors.New("no versions to install")
 	}
+	for _, request := range requests {
+		progress.register(request.artifact.Filename, request.artifact.Size)
+	}
 
 	if jobs > len(requests) {
 		jobs = len(requests)
@@ -106,7 +111,7 @@ func installVersions(requested []string, options InstallOptions) error {
 				if !ok {
 					return
 				}
-				if installErr := installOne(ctx, env, request.release, request.artifact, options); installErr != nil {
+				if installErr := installOne(ctx, env, request.release, request.artifact, options, progress); installErr != nil {
 					firstErrOnce.Do(func() { firstErr = installErr })
 					cancel()
 					return
@@ -128,10 +133,11 @@ send:
 	}
 	close(tasks)
 	wait.Wait()
+	progress.close()
 	if firstErr != nil {
 		return firstErr
 	}
-	if err := ctx.Err(); err != nil && !errors.Is(err, context.Canceled) {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 
@@ -182,7 +188,11 @@ send:
 	return nil
 }
 
-func installOne(ctx context.Context, env *Environment, release Release, artifact Artifact, options InstallOptions) error {
+func installOne(ctx context.Context, env *Environment, release Release, artifact Artifact, options InstallOptions, progressArgs ...*downloadProgress) error {
+	var progress *downloadProgress
+	if len(progressArgs) > 0 {
+		progress = progressArgs[0]
+	}
 	version := release.Version
 	lock, err := acquireFileLock(ctx, filepath.Join(env.locksDir(), lockName("install-", version)))
 	if err != nil {
@@ -207,7 +217,7 @@ func installOne(ctx context.Context, env *Environment, release Release, artifact
 	}
 	defer os.RemoveAll(temporary)
 
-	archivePath, err := downloadArtifact(ctx, env, artifact)
+	archivePath, err := downloadArtifact(ctx, env, artifact, progress)
 	if err != nil {
 		return err
 	}
@@ -216,7 +226,7 @@ func installOne(ctx context.Context, env *Environment, release Release, artifact
 		return fmt.Errorf("extract %s: %w", version, err)
 	}
 	if options.Build {
-		bootstrap, bootstrapErr := ensureBootstrap(ctx, env, nil)
+		bootstrap, bootstrapErr := ensureBootstrap(ctx, env, nil, progress)
 		if bootstrapErr != nil {
 			return bootstrapErr
 		}
@@ -288,7 +298,11 @@ func commitVersionDir(env *Environment, version, staged string, force bool) erro
 	return nil
 }
 
-func ensureBootstrap(ctx context.Context, env *Environment, releases []Release) (string, error) {
+func ensureBootstrap(ctx context.Context, env *Environment, releases []Release, progressArgs ...*downloadProgress) (string, error) {
+	var progress *downloadProgress
+	if len(progressArgs) > 0 {
+		progress = progressArgs[0]
+	}
 	if root := os.Getenv("GOROOT_BOOTSTRAP"); root != "" && validBootstrapRoot(root) {
 		absolute, _ := filepath.Abs(root)
 		return absolute, nil
@@ -326,7 +340,7 @@ func ensureBootstrap(ctx context.Context, env *Environment, releases []Release) 
 		return "", err
 	}
 	defer os.RemoveAll(temporary)
-	archivePath, err := downloadArtifact(ctx, env, artifact)
+	archivePath, err := downloadArtifact(ctx, env, artifact, progress)
 	if err != nil {
 		return "", fmt.Errorf("download bootstrap %s: %w", release.Version, err)
 	}

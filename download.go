@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact) (string, error) {
+func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact, progressArgs ...*downloadProgress) (string, error) {
 	ctx = contextOrBackground(ctx)
 	env, err := env.normalized()
 	if err != nil {
@@ -28,8 +28,30 @@ func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact) 
 	if filepath.Base(artifact.Filename) != artifact.Filename || strings.ContainsAny(artifact.Filename, `/\\`) {
 		return "", fmt.Errorf("unsafe artifact filename %q", artifact.Filename)
 	}
+	var progress *downloadProgress
+	if len(progressArgs) > 0 {
+		progress = progressArgs[0]
+	}
+	if progress != nil {
+		progress.register(artifact.Filename, artifact.Size)
+	}
+	cached := false
+	started := false
+	success := false
+	defer func() {
+		if progress == nil || cached {
+			return
+		}
+		if started {
+			progress.finish(artifact.Filename, success)
+			return
+		}
+		progress.failed(artifact.Filename)
+	}()
 	finalPath := env.downloadPath(artifact.Filename)
 	if validDownloadedFile(finalPath, artifact) {
+		cached = true
+		progress.cached(artifact.Filename, cachedFileSize(finalPath))
 		return finalPath, nil
 	}
 	if _, err := os.Stat(finalPath); err == nil {
@@ -44,6 +66,8 @@ func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact) 
 	}
 	defer lock.Close()
 	if validDownloadedFile(finalPath, artifact) {
+		cached = true
+		progress.cached(artifact.Filename, cachedFileSize(finalPath))
 		return finalPath, nil
 	}
 
@@ -70,8 +94,11 @@ func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact) 
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
+	progress.begin(artifact.Filename, progressDownloadSize(artifact.Size, response.ContentLength))
+	started = true
 	hash := sha256.New()
-	count, copyErr := io.Copy(io.MultiWriter(tmp, hash), response.Body)
+	reader := progressCountingReader{reader: response.Body, progress: progress, name: artifact.Filename}
+	count, copyErr := io.Copy(io.MultiWriter(tmp, hash), reader)
 	if copyErr != nil {
 		_ = tmp.Close()
 		return "", fmt.Errorf("download %s: %w", artifact.Filename, copyErr)
@@ -92,11 +119,31 @@ func downloadArtifact(ctx context.Context, env *Environment, artifact Artifact) 
 	}
 	if err := os.Rename(tmpPath, finalPath); err != nil {
 		if validDownloadedFile(finalPath, artifact) {
+			success = true
 			return finalPath, nil
 		}
 		return "", fmt.Errorf("cache download %s: %w", artifact.Filename, err)
 	}
+	success = true
 	return finalPath, nil
+}
+
+func progressDownloadSize(artifactSize, contentLength int64) int64 {
+	if artifactSize > 0 {
+		return artifactSize
+	}
+	if contentLength > 0 {
+		return contentLength
+	}
+	return 0
+}
+
+func cachedFileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return 0
+	}
+	return info.Size()
 }
 
 func validateArtifact(artifact Artifact) error {

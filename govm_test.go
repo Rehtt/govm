@@ -429,7 +429,13 @@ func TestAutoBootstrapIsNotRegisteredAsAVersion(t *testing.T) {
 	env := server.environment(t)
 	t.Setenv("PATH", filepath.Join(t.TempDir(), "empty"))
 	t.Setenv("GOROOT_BOOTSTRAP", "")
-	root, err := ensureBootstrap(context.Background(), env, nil)
+	progress, output := testDownloadProgress()
+	defer progress.close()
+	root, err := ensureBootstrap(context.Background(), env, nil, progress)
+	progress.close()
+	if !strings.Contains(output.String(), "1/1 100%") {
+		t.Fatalf("bootstrap progress missing: %q", output.String())
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

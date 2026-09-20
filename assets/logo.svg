@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="180" viewBox="0 0 560 180" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">govm — Go Version Manager</title>
+  <desc id="desc">A cyan version-switching symbol beside the govm wordmark on a dark rounded background.</desc>
+  <rect width="560" height="180" rx="32" fill="#0F172A"/>
+  <rect x="28" y="28" width="124" height="124" rx="28" fill="#153347"/>
+  <path d="M57 72H122L108 58M122 72L108 86" stroke="#22D3EE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M123 108H58L72 94M58 108L72 122" stroke="#67E8F9" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="57" cy="72" r="5" fill="#F8FAFC"/>
+  <circle cx="123" cy="108" r="5" fill="#F8FAFC"/>
+  <g stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M228 69V109Q228 123 213 123H199M228 70Q220 63 210 66Q193 68 193 84Q193 101 209 101Q220 101 228 94" stroke="#F8FAFC"/>
+    <rect x="248" y="65" width="35" height="37" rx="17.5" stroke="#F8FAFC"/>
+    <path d="M303 66L319 102L335 66M355 102V66M355 76Q361 65 371 65Q382 65 382 79V102M382 77Q390 65 398 65Q410 65 410 79V102" stroke="#22D3EE"/>
+  </g>
+  <text x="192" y="148" fill="#94A3B8" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="15" letter-spacing="2">GO VERSION MANAGER</text>
+  <path d="M467 64L479 76L467 88M486 100H504" stroke="#475569" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

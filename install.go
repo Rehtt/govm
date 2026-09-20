@@ -242,6 +242,9 @@ func validateGoRoot(root, expectedVersion string) error {
 		return fmt.Errorf("read VERSION: %w", err)
 	}
 	actual := strings.TrimSpace(string(versionData))
+	if firstLine, _, ok := strings.Cut(actual, "\n"); ok {
+		actual = strings.TrimSpace(firstLine)
+	}
 	if actual != expectedVersion {
 		return fmt.Errorf("VERSION is %q, expected %q", actual, expectedVersion)
 	}

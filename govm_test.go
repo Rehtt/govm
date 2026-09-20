@@ -201,6 +201,23 @@ func TestInstallPrefersBinaryArchive(t *testing.T) {
 	}
 }
 
+func TestValidateGoRootAcceptsVersionMetadata(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "go"), []byte("go"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	version := "go1.27.1\ntime 2026-08-28T16:20:06Z\n"
+	if err := os.WriteFile(filepath.Join(root, "VERSION"), []byte(version), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateGoRoot(root, "go1.27.1"); err != nil {
+		t.Fatalf("validateGoRoot rejected an official VERSION file: %v", err)
+	}
+}
+
 func TestBuildUsesExistingBootstrapAndDoesNotDownloadBinary(t *testing.T) {
 	server := newTestReleaseServer(t, "#!/bin/sh\nset -eu\nprintf '%s|%s' \"$GOROOT_BOOTSTRAP\" \"$GOROOT_FINAL\" > ../build-env\nmkdir -p ../bin\nprintf '#!/bin/sh\\nexit 0\\n' > ../bin/go\nchmod +x ../bin/go\n")
 	env := server.environment(t)

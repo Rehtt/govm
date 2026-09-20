@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -34,7 +35,9 @@ func initShell(environment *Environment, requestedShell string) error {
 	if err != nil {
 		return fmt.Errorf("read %s configuration: %w", configPath, err)
 	}
-	updated := updateManagedBlock(old, shellBlock(env, shell))
+	goBin := goBinPath(env)
+	includeGoBin := !pathContains(os.Getenv("PATH"), goBin) || managedBlockContainsPath(old, goBin)
+	updated := updateManagedBlock(old, shellBlockWithGoBin(env, shell, includeGoBin))
 	if updated == old {
 		fmt.Fprintf(env.Output, "govm: %s configuration already initialized (%s)\n", shell, configPath)
 		return nil
@@ -149,15 +152,91 @@ func updateManagedBlock(content, block string) string {
 }
 
 func shellBlock(env *Environment, shell string) string {
+	goBin := goBinPath(env)
+	return shellBlockWithGoBin(env, shell, !pathContains(os.Getenv("PATH"), goBin))
+}
+
+func shellBlockWithGoBin(env *Environment, shell string, includeGoBin bool) string {
 	path := filepath.Join(env.Root, "current", "bin")
+	paths := []string{path}
+	if includeGoBin {
+		paths = append(paths, goBinPath(env))
+	}
 	shell = normalizeShell(shell)
 	switch shell {
 	case "fish":
-		return shellBlockStart + "\nset -gx PATH " + shellQuote(path) + " $PATH\n" + shellBlockEnd
+		quoted := make([]string, 0, len(paths))
+		for _, path := range paths {
+			quoted = append(quoted, shellQuote(path))
+		}
+		return shellBlockStart + "\nset -gx PATH " + strings.Join(quoted, " ") + " $PATH\n" + shellBlockEnd
 	case "powershell", "pwsh":
-		return shellBlockStart + "\n$env:Path = " + powershellQuote(path+string(os.PathListSeparator)) + " + $env:Path\n" + shellBlockEnd
+		quoted := make([]string, 0, len(paths))
+		for _, path := range paths {
+			quoted = append(quoted, powershellQuote(path+string(os.PathListSeparator)))
+		}
+		return shellBlockStart + "\n$env:Path = " + strings.Join(quoted, " + ") + " + $env:Path\n" + shellBlockEnd
 	default:
-		return shellBlockStart + "\nexport PATH=" + shellQuote(path) + ":$PATH\n" + shellBlockEnd
+		quoted := make([]string, 0, len(paths))
+		for _, path := range paths {
+			quoted = append(quoted, shellQuote(path))
+		}
+		return shellBlockStart + "\nexport PATH=" + strings.Join(quoted, ":") + ":$PATH\n" + shellBlockEnd
+	}
+}
+
+func goBinPath(env *Environment) string {
+	return filepath.Join(filepath.Dir(env.Root), "go", "bin")
+}
+
+func pathContains(pathValue, target string) bool {
+	if target == "" {
+		return false
+	}
+	target = comparablePath(target)
+	for _, entry := range filepath.SplitList(pathValue) {
+		if comparablePath(entry) == target {
+			return true
+		}
+	}
+	return false
+}
+
+func comparablePath(path string) string {
+	if path == "" {
+		return ""
+	}
+	if path == "~" || strings.HasPrefix(path, "~"+string(filepath.Separator)) {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			path = filepath.Join(home, strings.TrimPrefix(path, "~"+string(filepath.Separator)))
+		}
+	}
+	absolute, err := filepath.Abs(path)
+	if err == nil {
+		path = absolute
+	}
+	path = filepath.Clean(path)
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(path)
+	}
+	return path
+}
+
+func managedBlockContainsPath(content, path string) bool {
+	for {
+		start := strings.Index(content, shellBlockStart)
+		if start < 0 {
+			return false
+		}
+		relEnd := strings.Index(content[start+len(shellBlockStart):], shellBlockEnd)
+		if relEnd < 0 {
+			return false
+		}
+		end := start + len(shellBlockStart) + relEnd + len(shellBlockEnd)
+		if strings.Contains(content[start:end], path) {
+			return true
+		}
+		content = content[end:]
 	}
 }
 

@@ -101,7 +101,7 @@ govm list-remote --all --json     # 以 JSON 输出远端版本
 
 ## Shell 配置与补全
 
-`init` 将 govm 的 `current/bin` 加入 Shell 配置中的 `PATH`，可重复执行以修复配置。修改已有配置文件时，会在首次修改时保存 `.govm.bak` 备份。
+`init` 将 govm 的 `current/bin` 加入 Shell 配置中的 `PATH`；如果当前 `PATH` 没有 `~/go/bin`，也会一并加入。该命令可重复执行以修复配置。修改已有配置文件时，会在首次修改时保存 `.govm.bak` 备份。
 
 ```sh
 govm init bash

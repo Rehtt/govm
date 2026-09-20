@@ -364,6 +364,46 @@ func TestShellInitIsIdempotentAndBacksUp(t *testing.T) {
 	}
 }
 
+func TestShellInitAddsGoBinWhenMissingFromPath(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", filepath.Join(home, "bin"))
+	root := filepath.Join(home, ".govm")
+	env := &Environment{Root: root, Output: io.Discard, ErrorOutput: io.Discard}
+
+	if err := initShell(env, "bash"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".bashrc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	goBin := filepath.Join(home, "go", "bin")
+	if !strings.Contains(string(data), goBin) {
+		t.Fatalf("shell configuration does not contain %q:\n%s", goBin, data)
+	}
+}
+
+func TestShellInitDoesNotAddGoBinWhenPresentInPath(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	t.Setenv("HOME", home)
+	goBin := filepath.Join(home, "go", "bin")
+	t.Setenv("PATH", strings.Join([]string{filepath.Join(home, "bin"), goBin}, string(os.PathListSeparator)))
+	root := filepath.Join(home, ".govm")
+	env := &Environment{Root: root, Output: io.Discard, ErrorOutput: io.Discard}
+
+	if err := initShell(env, "bash"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".bashrc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(data), goBin) != 0 {
+		t.Fatalf("shell configuration unexpectedly adds %q:\n%s", goBin, data)
+	}
+}
+
 func TestUseAndUninstallProtection(t *testing.T) {
 	server := newTestReleaseServer(t, "")
 	env := server.environment(t)

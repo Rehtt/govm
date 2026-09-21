@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+      - name: Build and package
+        env:
+          TAG: ${{ github.ref_name }}
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          version="${TAG}-$(git rev-parse --short=7 HEAD)"
+          mkdir -p dist
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              name="govm_${os}_${arch}"
+              stage="$(mktemp -d)"
+              binary=govm
+              if [[ "$os" == windows ]]; then
+                binary=govm.exe
+              fi
+              GOOS="$os" GOARCH="$arch" go build -trimpath \
+                -ldflags "-X main.version=${version}" -o "$stage/$binary" .
+              cp LICENSE "$stage/LICENSE"
+              if [[ "$os" == windows ]]; then
+                python3 -m zipfile -c "dist/${name}.zip" "$stage/$binary" "$stage/LICENSE"
+              else
+                tar -czf "dist/${name}.tar.gz" -C "$stage" "$binary" LICENSE
+              fi
+              rm -rf "$stage"
+            done
+          done
+          (cd dist && sha256sum *.tar.gz *.zip > checksums.txt)
+      - name: Publish Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --verify-tag --generate-notes --prerelease=false
+          fi

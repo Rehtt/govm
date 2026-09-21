@@ -8,6 +8,8 @@ govm 是一个跨平台 Go 版本管理器，支持安装官方二进制包、�
 
 ## 安装 govm
 
+从 [GitHub Releases](https://github.com/Rehtt/govm/releases) 下载对应平台的归档：Linux、macOS（文件名使用 `darwin`）和 Windows 均提供 `amd64`、`arm64`。Linux/macOS 使用 `.tar.gz`，Windows 使用 `.zip`，例如 `govm_linux_amd64.tar.gz`。解压后将 `govm`（Windows 为 `govm.exe`）放到 `PATH` 中的目录。归档包含 LICENSE，发布附件中的 `checksums.txt` 提供 SHA-256 校验值。
+
 从源码安装，需要 Go 1.26.4 或更高版本（见 `go.mod`）：
 
 ```sh
@@ -20,7 +22,17 @@ go install .
 
 ```sh
 govm --help
+govm version
 ```
+
+普通本地构建输出 `govm dev`，不会自动读取 Git 信息。可在本地构建时注入版本：
+
+```sh
+go build -trimpath -ldflags "-X main.version=v1.0.0-a1b2c3d" -o govm .
+./govm version  # govm v1.0.0-a1b2c3d
+```
+
+推送 tag 会在测试通过后自动构建六种平台归档并发布普通 GitHub Release，版本格式为 `{tag}-{短 hash}`。tag 保留原文（包括 `v` 前缀），hash 来自目标提交，至少七位；附注 tag 同样使用提交的 hash。同一 tag 的发布任务串行执行，重跑会覆盖该 Release 的同名附件。
 
 ## 快速开始
 
@@ -94,6 +106,8 @@ govm install --no-init latest
 源码构建优先使用 `GOROOT_BOOTSTRAP` 指定的工具链，其次使用 `PATH` 中的 Go；若均不可用，会尝试下载 bootstrap 工具链。构建环境和 bootstrap 版本需满足目标 Go 版本的要求，日志保存在 `~/.govm/logs/build-go<版本号>.log`。
 
 ## 查看版本
+
+`govm version` 查询 govm 自身版本，例如 `govm v1.0.0-a1b2c3d`，不接受额外位置参数。以下命令查询所管理的 Go 版本：
 
 ```sh
 govm list                         # 本地版本

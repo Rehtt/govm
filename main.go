@@ -11,6 +11,8 @@ import (
 	"github.com/Rehtt/Kit/cli"
 )
 
+var version = "dev"
+
 func main() {
 	root := cli.NewCLI("govm", "跨平台 Go 版本管理器")
 	root.Usage = "[command]"
@@ -23,12 +25,26 @@ func main() {
 		cacheCommand(),
 		initCommand(),
 		completionCommand(),
+		versionCommand(),
 	)
 
 	if err := root.Run(os.Args[1:]); err != nil && !errors.Is(err, flag.ErrHelp) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func versionCommand() *cli.CLI {
+	c := cli.NewCLI("version", "查看 govm 版本")
+	c.Usage = "[flags]"
+	c.CommandFunc = func(args []string) error {
+		if len(args) != 0 {
+			return fmt.Errorf("version does not accept positional arguments")
+		}
+		fmt.Printf("govm %s\n", version)
+		return nil
+	}
+	return c
 }
 
 func install() *cli.CLI {

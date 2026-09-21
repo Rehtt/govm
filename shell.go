@@ -268,7 +268,7 @@ const bashCompletion = `# bash completion for govm
 _govm_complete() {
     local cur prev words cword
     _init_completion || return
-    local commands="install list list-remote use uninstall cache init completion"
+    local commands="install list list-remote use uninstall cache init completion version"
     if [[ ${cword} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
         return
@@ -288,7 +288,7 @@ complete -F _govm_complete govm
 
 const zshCompletion = `#compdef govm
 _govm() {
-  _arguments '1:command:(install list list-remote use uninstall cache init completion)' '*::arg:->args'
+  _arguments '1:command:(install list list-remote use uninstall cache init completion version)' '*::arg:->args'
   case $words[2] in
     install) _arguments '--build[build from source]' '--force[replace]' '--no-init[skip shell init]' '-j+[parallel jobs]:jobs:' '--jobs+[parallel jobs]:jobs:' ;;
     list) _arguments '--json[JSON output]' ;;
@@ -302,7 +302,7 @@ _govm() {
 compdef _govm govm
 `
 
-const fishCompletion = `complete -c govm -f -n '__fish_use_subcommand' -a 'install list list-remote use uninstall cache init completion'
+const fishCompletion = `complete -c govm -f -n '__fish_use_subcommand' -a 'install list list-remote use uninstall cache init completion version'
 complete -c govm -f -n '__fish_seen_subcommand_from init completion' -a 'bash zsh fish powershell'
 complete -c govm -l build -n '__fish_seen_subcommand_from install'
 complete -c govm -l force -n '__fish_seen_subcommand_from install uninstall'
@@ -318,7 +318,7 @@ complete -c govm -l all -n '__fish_seen_subcommand_from clean'
 
 const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName govm -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
-    $commands = 'install','list','list-remote','use','uninstall','cache','init','completion'
+    $commands = 'install','list','list-remote','use','uninstall','cache','init','completion','version'
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
     if ($tokens.Count -le 1) {
         $commands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {

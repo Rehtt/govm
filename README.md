@@ -8,6 +8,46 @@ govm 是一个跨平台 Go 版本管理器，支持安装官方二进制包、�
 
 ## 安装 govm
 
+### 一键安装（推荐）
+
+无需预装 Go 或管理员权限。Linux / macOS：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Rehtt/govm/master/install.sh | sh
+# 或使用 wget
+wget -qO- https://raw.githubusercontent.com/Rehtt/govm/master/install.sh | sh
+```
+
+Windows PowerShell 5.1 / PowerShell 7：
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/Rehtt/govm/master/install.ps1 | Invoke-Expression
+```
+
+默认下载 `Rehtt/govm` 最新 Release，校验 SHA-256 后安装到 `~/.govm/bin`。支持 Linux、macOS、Windows 的 amd64 / arm64；重复运行相同命令即可更新。上述在线命令在脚本合入 `master` 后生效。
+
+可以指定 Release tag 和安装目录（下列 tag 仅为示例，须替换为已发布的 tag）：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Rehtt/govm/master/install.sh | GOVM_VERSION=v1.0.0 GOVM_INSTALL_DIR="$HOME/my tools/bin" sh
+```
+
+```powershell
+$env:GOVM_VERSION = 'v1.0.0'
+$env:GOVM_INSTALL_DIR = "$HOME\my tools\bin"
+Invoke-RestMethod https://raw.githubusercontent.com/Rehtt/govm/master/install.ps1 | Invoke-Expression
+# 恢复后续安装使用默认值
+Remove-Item Env:GOVM_VERSION, Env:GOVM_INSTALL_DIR
+```
+
+Unix 需要 `curl` 或 `wget`、`sha256sum` 或 `shasum`，以及 `tar` 和常见 POSIX 工具。Windows 使用 PowerShell 内置下载、解压和校验功能。下载或校验失败不会替换已有二进制；Windows 更新时如文件被占用，请关闭正在运行的 govm 后重试。
+
+脚本自动配置 **govm 命令的 PATH**。Unix 根据 `$SHELL` 更新 Bash、Zsh 或 Fish 配置（尊重 `ZDOTDIR`、`XDG_CONFIG_HOME`），首次修改已有文件时备份为 `.govm-install.bak`；Bash 同时处理交互与登录配置。重新打开终端，或执行脚本输出的命令，让当前会话生效。未知 Shell 会输出手动配置说明。Windows 更新用户 PATH 和当前 PowerShell 会话 PATH。自定义安装目录不会改变 govm 的数据目录。
+
+脚本只安装 govm；Go 工具链需按“快速开始”单独安装，`govm init` 负责配置 **Go 工具链的 PATH**。
+
+### 手动下载与源码安装
+
 从 [GitHub Releases](https://github.com/Rehtt/govm/releases) 下载对应平台的归档：Linux、macOS（文件名使用 `darwin`）和 Windows 均提供 `amd64`、`arm64`。Linux/macOS 使用 `.tar.gz`，Windows 使用 `.zip`，例如 `govm_linux_amd64.tar.gz`。解压后将 `govm`（Windows 为 `govm.exe`）放到 `PATH` 中的目录。归档包含 LICENSE，发布附件中的 `checksums.txt` 提供 SHA-256 校验值。
 
 从源码安装，需要 Go 1.26.4 或更高版本（见 `go.mod`）：
@@ -36,10 +76,15 @@ go build -trimpath -ldflags "-X main.version=v1.0.0-a1b2c3d" -o govm .
 
 ## 快速开始
 
-# 初始化
-govm init
+安装 govm 并使 PATH 生效后：
 
 ```sh
+# 验证 govm 安装
+govm version
+
+# 初始化 Go 工具链 PATH
+govm init
+
 # 查看当前平台可安装的稳定版本
 govm list-remote
 

@@ -1,0 +1,27 @@
+name: Installer checks
+on:
+  push:
+    paths: ['install.sh', 'install.ps1', 'tests/**', '.github/workflows/installers.yml']
+  pull_request:
+    paths: ['install.sh', 'install.ps1', 'tests/**', '.github/workflows/installers.yml']
+permissions:
+  contents: read
+jobs:
+  unix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh -n install.sh
+      - run: python3 -m unittest discover -s tests
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - shell: ${{ matrix.shell }}
+        run: ./tests/install-windows.ps1
